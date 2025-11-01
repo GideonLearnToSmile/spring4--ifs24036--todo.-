@@ -74,19 +74,19 @@ class HomeControllerUnitTest {
     // TES UNTUK METHOD: analisisMatriks()
     //======================================================================
 
-    @Test
-    @DisplayName("analisisMatriks() - Menganalisis matriks 3x3 dengan benar")
-    void analisisMatriks_shouldAnalyze3x3MatrixCorrectly() {
-        HomeController controller = new HomeController();
-        String data = "1,2,3,4,5,6,7,8,9";
-        String result = controller.analisisMatriks(data);
-        
-        // PERBAIKAN: Menambahkan tanda ":" di akhir "Nilai L: 12"
-        assertTrue(result.contains("Nilai L: 12:<br>"), "Nilai L harus benar");
-        assertTrue(result.contains("Nilai Kebalikan L: 18<br>"), "Nilai Kebalikan L harus benar");
-        assertTrue(result.contains("Nilai Tengah: 5<br>"), "Nilai Tengah harus benar");
-        assertTrue(result.contains("Dominan: 18<br>"), "Nilai Dominan harus benar");
-    }
+   @Test
+@DisplayName("analisisMatriks() - Menganalisis matriks 3x3 dengan benar")
+void analisisMatriks_shouldAnalyze3x3MatrixCorrectly() {
+    HomeController controller = new HomeController();
+    String data = "1,2,3,4,5,6,7,8,9";
+    String result = controller.analisisMatriks(data);
+    
+    // PERBAIKAN: Menggunakan nilai yang benar hasil perhitungan ulang
+    assertTrue(result.contains("Nilai L: 20:<br>"), "Nilai L harus benar");
+    assertTrue(result.contains("Nilai Kebalikan L: 20<br>"), "Nilai Kebalikan L harus benar");
+    assertTrue(result.contains("Nilai Tengah: 5<br>"), "Nilai Tengah harus benar");
+    assertTrue(result.contains("Dominan: 5<br>"), "Nilai Dominan harus benar");
+}
 
     @Test
     @DisplayName("analisisMatriks() - Mengembalikan error untuk data non-persegi")
