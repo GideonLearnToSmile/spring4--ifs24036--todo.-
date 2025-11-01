@@ -239,6 +239,7 @@ public class HomeController {
     // METHOD 4: Dari AnalisisNilaiController
     // Endpoint: /analisis-nilai
     //======================================================================
+
 @GetMapping("/analisis-nilai")
 public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
     if (daftarNilai == null || daftarNilai.isEmpty()) {
@@ -246,25 +247,27 @@ public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
     }
 
     try {
-        int nilaiTertinggi = Collections.max(daftarNilai);
-        int nilaiTerendah = Collections.min(daftarNilai);
+        List<Integer> daftarNilaiMutable = new ArrayList<>(daftarNilai);
 
-        Collections.sort(daftarNilai);
+        int nilaiTertinggi = Collections.max(daftarNilaiMutable);
+        int nilaiTerendah = Collections.min(daftarNilaiMutable);
+
+        Collections.sort(daftarNilaiMutable);
+        
         List<NilaiFrekuensi> daftarFrekuensi = new ArrayList<>();
-        if (!daftarNilai.isEmpty()) {
-            int angkaSaatIni = daftarNilai.get(0);
-            int hitunganSaatIni = 1;
-            for (int i = 1; i < daftarNilai.size(); i++) {
-                if (daftarNilai.get(i) == angkaSaatIni) {
-                    hitunganSaatIni++;
-                } else {
-                    daftarFrekuensi.add(new NilaiFrekuensi(angkaSaatIni, hitunganSaatIni));
-                    angkaSaatIni = daftarNilai.get(i);
-                    hitunganSaatIni = 1;
-                }
+        // Pengecekan isEmpty() yang berlebihan sudah dihapus
+        int angkaSaatIni = daftarNilaiMutable.get(0);
+        int hitunganSaatIni = 1;
+        for (int i = 1; i < daftarNilaiMutable.size(); i++) {
+            if (daftarNilaiMutable.get(i) == angkaSaatIni) {
+                hitunganSaatIni++;
+            } else {
+                daftarFrekuensi.add(new NilaiFrekuensi(angkaSaatIni, hitunganSaatIni));
+                angkaSaatIni = daftarNilaiMutable.get(i);
+                hitunganSaatIni = 1;
             }
-            daftarFrekuensi.add(new NilaiFrekuensi(angkaSaatIni, hitunganSaatIni));
         }
+        daftarFrekuensi.add(new NilaiFrekuensi(angkaSaatIni, hitunganSaatIni));
 
         int nilaiTerbanyak = -1, frekuensiTerbanyak = 0;
         int nilaiTersedikit = -1, frekuensiTerdikit = Integer.MAX_VALUE;
@@ -283,12 +286,16 @@ public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
         int nilaiJumlahTerendah = -1, frekuensiNilaiJumlahTerendah = 0, jumlahTerendah = Integer.MAX_VALUE;
         for (NilaiFrekuensi nf : daftarFrekuensi) {
             int jumlah = nf.nilai() * nf.frekuensi();
-            if (jumlah > jumlahTertinggi || (jumlah == jumlahTertinggi && nf.nilai() > nilaiJumlahTertinggi)) {
+            
+            // LOGIKA YANG DISEMPURNAKAN
+            if (jumlah >= jumlahTertinggi) { // Lebih simpel, mencakup > dan ==
                 jumlahTertinggi = jumlah;
                 nilaiJumlahTertinggi = nf.nilai();
                 frekuensiNilaiJumlahTertinggi = nf.frekuensi();
             }
-            if (jumlah < jumlahTerendah || (jumlah == jumlahTerendah && nf.nilai() < nilaiJumlahTerendah)) {
+            
+            // LOGIKA YANG DISEMPURNAKAN
+            if (jumlah < jumlahTerendah) { // Logika || yang tak terjangkau dihapus
                 jumlahTerendah = jumlah;
                 nilaiJumlahTerendah = nf.nilai();
                 frekuensiNilaiJumlahTerendah = nf.frekuensi();
@@ -297,9 +304,8 @@ public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
 
         StringBuilder htmlResponse = new StringBuilder();
         htmlResponse.append("<!DOCTYPE html><html><head><title>Hasil Analisis Nilai</title><style>body { font-family: monospace; white-space: pre; margin: 2em; } div { border: 1px solid #ccc; padding: 1em; border-radius: 8px; } </style></head><body><div>");
-        htmlResponse.append("<h2>Data Input:</h2>").append(daftarNilai.toString()).append("<hr><h2>Hasil Analisis:</h2>");
+        htmlResponse.append("<h2>Data Input:</h2>").append(daftarNilaiMutable.toString()).append("<hr><h2>Hasil Analisis:</h2>");
         
-        // PERBAIKAN: Spasi ekstra dihapus agar tes lebih andal
         htmlResponse.append("Tertinggi: ").append(nilaiTertinggi).append("<br>");
         htmlResponse.append("Terendah: ").append(nilaiTerendah).append("<br>");
         htmlResponse.append("Terbanyak: ").append(nilaiTerbanyak).append(" (").append(frekuensiTerbanyak).append("x)").append("<br>");

@@ -1,0 +1,7 @@
+deskripsi,input_nilai,expected_tertinggi,expected_terendah,expected_terbanyak,expected_tersedikit,expected_jumlah_tertinggi,expected_jumlah_terendah
+Kasus Umum,10;20;10;30;20;10;5,30,5,10 (3x),5 (1x),20 * 2 = 40,5 * 1 = 5
+Semua Unik,1;2;3;4;5,5,1,1 (1x),1 (1x),5 * 1 = 5,1 * 1 = 1
+Satu Angka,7;7;7;7,7,7,7 (4x),7 (4x),7 * 4 = 28,7 * 4 = 28
+Tie Terbanyak (Pilih yg pertama),10;10;20;20;5;30,30,5,10 (2x),5 (1x),20 * 2 = 40,5 * 1 = 5
+Tie Jumlah Tertinggi (Pilih Nilai >),6;6;12,12,6,6 (2x),12 (1x),12 * 1 = 12,6 * 2 = 12
+Tie Jumlah Terendah (Pilih Nilai <),3;3;6,6,3,3 (2x),6 (1x),6 * 1 = 6,3 * 2 = 6
