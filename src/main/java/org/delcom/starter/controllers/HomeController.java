@@ -1,10 +1,12 @@
-
 package org.delcom.starter.controllers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,12 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HomeController {
 
-     @GetMapping("/")
+    @GetMapping("/")
     public String hello() {
-        return "Hay Abdullah, selamat datang di pengembangan aplikasi dengan Spring Boot!";
+        return "Hay Gideon, selamat datang di pengembangan aplikasi dengan Spring Boot!";
     }
 
-     @GetMapping("/hello/{name}")
+    @GetMapping("/hello/{name}")
     public String sayHello(@PathVariable String name) {
         return "Hello, " + name + "!";
     }
@@ -71,26 +73,40 @@ public class HomeController {
     }
 
     //======================================================================
-    // METHOD 2: Dari PerolehanNilaiController
-    // Endpoint: /hitung-nilai
+    // METHOD 2: perolehanNilai(strBase64) - Format Baris-per-Baris
     //======================================================================
-    @GetMapping("/hitung-nilai")
-    public String hitungNilai(
-            @RequestParam("bobotPA") int bobotPA, @RequestParam("bobotT") int bobotT,
-            @RequestParam("bobotK") int bobotK, @RequestParam("bobotP") int bobotP,
-            @RequestParam("bobotUTS") int bobotUTS, @RequestParam("bobotUAS") int bobotUAS,
-            @RequestParam("nilai") List<String> daftarNilai) {
-
-        Locale.setDefault(Locale.US);
-
-        int totalPA = 0, maxPA = 0;
-        int totalT = 0, maxT = 0;
-        int totalK = 0, maxK = 0;
-        int totalP = 0, maxP = 0;
-        int totalUTS = 0, maxUTS = 0;
-        int totalUAS = 0, maxUAS = 0;
-
+    @GetMapping("/perolehan-nilai")
+    public String perolehanNilai(@RequestParam("data") String strBase64) {
         try {
+            byte[] decodedBytes = Base64.getDecoder().decode(strBase64);
+            String decodedString = new String(decodedBytes);
+            
+            List<String> lines = Arrays.stream(decodedString.split("\\R"))
+                                       .filter(line -> !line.trim().isEmpty())
+                                       .collect(Collectors.toList());
+
+            if (lines.size() < 6) {
+                return "<h2>Error</h2><p>Data tidak lengkap. Diperlukan minimal 6 baris untuk bobot.</p>";
+            }
+
+            int bobotPA = Integer.parseInt(lines.get(0).trim());
+            int bobotT = Integer.parseInt(lines.get(1).trim());
+            int bobotK = Integer.parseInt(lines.get(2).trim());
+            int bobotP = Integer.parseInt(lines.get(3).trim());
+            int bobotUTS = Integer.parseInt(lines.get(4).trim());
+            int bobotUAS = Integer.parseInt(lines.get(5).trim());
+            
+            List<String> daftarNilai = lines.subList(6, lines.size());
+
+            Locale.setDefault(Locale.US);
+
+            int totalPA = 0, maxPA = 0;
+            int totalT = 0, maxT = 0;
+            int totalK = 0, maxK = 0;
+            int totalP = 0, maxP = 0;
+            int totalUTS = 0, maxUTS = 0;
+            int totalUAS = 0, maxUAS = 0;
+
             for (String line : daftarNilai) {
                 String[] parts = line.split("\\|");
                 if (parts.length != 3) continue;
@@ -116,12 +132,12 @@ public class HomeController {
             double rataUTS = (maxUTS == 0) ? 0 : (totalUTS * 100.0 / maxUTS);
             double rataUAS = (maxUAS == 0) ? 0 : (totalUAS * 100.0 / maxUAS);
 
-            int bulatPA = (int) Math.floor(rataPA);
-            int bulatT = (int) Math.floor(rataT);
-            int bulatK = (int) Math.floor(rataK);
-            int bulatP = (int) Math.floor(rataP);
-            int bulatUTS = (int) Math.floor(rataUTS);
-            int bulatUAS = (int) Math.floor(rataUAS);
+            int bulatPA = (int) Math.round(rataPA);
+            int bulatT = (int) Math.round(rataT);
+            int bulatK = (int) Math.round(rataK);
+            int bulatP = (int) Math.round(rataP);
+            int bulatUTS = (int) Math.round(rataUTS);
+            int bulatUAS = (int) Math.round(rataUAS);
 
             double nilaiPA = (bulatPA / 100.0) * bobotPA;
             double nilaiT = (bulatT / 100.0) * bobotT;
@@ -131,6 +147,15 @@ public class HomeController {
             double nilaiUAS = (bulatUAS / 100.0) * bobotUAS;
 
             double totalNilai = nilaiPA + nilaiT + nilaiK + nilaiP + nilaiUTS + nilaiUAS;
+
+            String grade;
+            if (totalNilai >= 79.5) grade = "A";
+            else if (totalNilai >= 72) grade = "AB";
+            else if (totalNilai >= 64.5) grade = "B";
+            else if (totalNilai >= 57) grade = "BC";
+            else if (totalNilai >= 49.5) grade = "C";
+            else if (totalNilai >= 34) grade = "D";
+            else grade = "E";
 
             StringBuilder htmlResponse = new StringBuilder();
             htmlResponse.append("<!DOCTYPE html><html><head><title>Hasil Perolehan Nilai</title>");
@@ -145,24 +170,30 @@ public class HomeController {
             htmlResponse.append(String.format(">> UAS:          %d/100 (%.2f/%d)<br>", bulatUAS, nilaiUAS, bobotUAS));
             htmlResponse.append("<br>");
             htmlResponse.append(String.format(">> Nilai Akhir: %.2f<br>", totalNilai));
-            htmlResponse.append(String.format(">> Grade: %s<br>", getGrade(totalNilai)));
+            htmlResponse.append(String.format(">> Grade: %s<br>", grade));
             htmlResponse.append("</div></body></html>");
 
             return htmlResponse.toString();
 
         } catch (Exception e) {
-            return "<h2>Error</h2><p>Terjadi kesalahan saat memproses input: " + e.getMessage() + "</p>";
+            return "<h2>Error</h2><p>Terjadi kesalahan saat memproses input Base64: " + e.getMessage() + "</p>";
         }
     }
 
     //======================================================================
-    // METHOD 3: Dari MatriksController
-    // Endpoint: /analisis-matriks
+    // METHOD 3: perbedaanL(strBase64) - Format Baris-per-Baris
     //======================================================================
-    @GetMapping("/analisis-matriks")
-    public String analisisMatriks(@RequestParam("data") String dataMatriks) {
+    @GetMapping("/perbedaan-l")
+    public String perbedaanL(@RequestParam("data") String strBase64) {
         try {
-            String[] elemen = dataMatriks.split(",");
+            byte[] decodedBytes = Base64.getDecoder().decode(strBase64);
+            String decodedString = new String(decodedBytes);
+
+            String[] elemen = Arrays.stream(decodedString.split("\\R"))
+                                    .filter(line -> !line.trim().isEmpty())
+                                    .map(String::trim)
+                                    .toArray(String[]::new);
+
             int totalElemen = elemen.length;
             double nDouble = Math.sqrt(totalElemen);
             if (nDouble != Math.floor(nDouble)) {
@@ -173,7 +204,7 @@ public class HomeController {
             int index = 0;
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
-                    matriks[i][j] = Integer.parseInt(elemen[index++].trim());
+                    matriks[i][j] = Integer.parseInt(elemen[index++]);
                 }
             }
 
@@ -231,22 +262,37 @@ public class HomeController {
             return htmlResponse.toString();
 
         } catch (Exception e) {
-            return "<h2>Error</h2><p>Terjadi kesalahan saat memproses data: " + e.getMessage() + "</p>";
+            return "<h2>Error</h2><p>Terjadi kesalahan saat memproses data Base64: " + e.getMessage() + "</p>";
         }
     }
     
     //======================================================================
-    // METHOD 4: Dari AnalisisNilaiController
-    // Endpoint: /analisis-nilai
+    // METHOD 4: palingTer(strBase64) - Format Baris-per-Baris
     //======================================================================
+   @GetMapping("/paling-ter")
+    public String palingTer(@RequestParam("data") String strBase64) {
+        List<Integer> daftarNilai;
+        try {
+            byte[] decodedBytes = Base64.getDecoder().decode(strBase64);
+            String decodedString = new String(decodedBytes);
 
-@GetMapping("/analisis-nilai")
-public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
-    if (daftarNilai == null || daftarNilai.isEmpty()) {
-        return "<h2>Error</h2><p>Tidak ada data nilai yang diberikan.</p>";
-    }
+             if (decodedString.trim().isEmpty()) {
+                 daftarNilai = Collections.emptyList();
+            } else {
+                daftarNilai = Arrays.stream(decodedString.split("\\R"))
+                                    .filter(line -> !line.trim().isEmpty())
+                                    .map(s -> Integer.parseInt(s.trim()))
+                                    .collect(Collectors.toList());
+            }
 
-    try {
+        } catch (Exception e) {
+             return "<h2>Error</h2><p>Terjadi kesalahan saat memproses data Base64: " + e.getMessage() + "</p>";
+        }
+
+        if (daftarNilai.isEmpty()) {
+            return "<h2>Error</h2><p>Tidak ada data nilai yang diberikan.</p>";
+        }
+        
         List<Integer> daftarNilaiMutable = new ArrayList<>(daftarNilai);
 
         int nilaiTertinggi = Collections.max(daftarNilaiMutable);
@@ -255,7 +301,6 @@ public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
         Collections.sort(daftarNilaiMutable);
         
         List<NilaiFrekuensi> daftarFrekuensi = new ArrayList<>();
-        // Pengecekan isEmpty() yang berlebihan sudah dihapus
         int angkaSaatIni = daftarNilaiMutable.get(0);
         int hitunganSaatIni = 1;
         for (int i = 1; i < daftarNilaiMutable.size(); i++) {
@@ -286,16 +331,12 @@ public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
         int nilaiJumlahTerendah = -1, frekuensiNilaiJumlahTerendah = 0, jumlahTerendah = Integer.MAX_VALUE;
         for (NilaiFrekuensi nf : daftarFrekuensi) {
             int jumlah = nf.nilai() * nf.frekuensi();
-            
-            // LOGIKA YANG DISEMPURNAKAN
-            if (jumlah >= jumlahTertinggi) { // Lebih simpel, mencakup > dan ==
+            if (jumlah >= jumlahTertinggi) {
                 jumlahTertinggi = jumlah;
                 nilaiJumlahTertinggi = nf.nilai();
                 frekuensiNilaiJumlahTertinggi = nf.frekuensi();
             }
-            
-            // LOGIKA YANG DISEMPURNAKAN
-            if (jumlah < jumlahTerendah) { // Logika || yang tak terjangkau dihapus
+            if (jumlah < jumlahTerendah) {
                 jumlahTerendah = jumlah;
                 nilaiJumlahTerendah = nf.nilai();
                 frekuensiNilaiJumlahTerendah = nf.frekuensi();
@@ -315,24 +356,5 @@ public String analisisNilai(@RequestParam("nilai") List<Integer> daftarNilai) {
         
         htmlResponse.append("</div></body></html>");
         return htmlResponse.toString();
-
-    } catch (Exception e) {
-        return "<h2>Error</h2><p>Terjadi kesalahan saat memproses data: " + e.getMessage() + "</p>";
     }
 }
-
-    //======================================================================
-    // HELPER METHOD: Untuk hitungNilai
-    //======================================================================
-    private String getGrade(double nilai) {
-        if (nilai >= 79.5) return "A";
-        if (nilai >= 72) return "AB";
-        if (nilai >= 64.5) return "B";
-        if (nilai >= 57) return "BC";
-        if (nilai >= 49.5) return "C";
-        if (nilai >= 34) return "D";
-        return "E";
-    }
-}
-
-

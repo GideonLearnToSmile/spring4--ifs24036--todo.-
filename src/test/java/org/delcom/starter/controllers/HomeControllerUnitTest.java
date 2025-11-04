@@ -7,48 +7,31 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.Base64;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class HomeControllerUnitTest {
 
-    //======================================================================
-    // TES UNTUK METHOD: hello() dan sayHello() (Sudah Ada)
-    //======================================================================
+    private final HomeController controller = new HomeController();
 
-    @Test
-    @DisplayName("hello() - Mengembalikan pesan selamat datang yang benar")
-    void hello_ShouldReturnWelcomeMessage() {
-        HomeController controller = new HomeController();
-        String result = controller.hello();
-        assertEquals("Hay Abdullah, selamat datang di pengembangan aplikasi dengan Spring Boot!", result);
+    private String encodeFileToBase64(String filePath) throws IOException {
+        Path path = Paths.get("src/test/resources/" + filePath);
+        assertTrue(Files.exists(path), "File tes tidak ditemukan: " + path.toAbsolutePath());
+        byte[] fileBytes = Files.readAllBytes(path);
+        return Base64.getEncoder().encodeToString(fileBytes);
     }
 
-    @Test
-    @DisplayName("sayHello() - Mengembalikan pesan sapaan yang dipersonalisasi")
-    void sayHello_ShouldReturnPersonalizedGreeting() {
-        HomeController controller = new HomeController();
-        String result = controller.sayHello("Abdullah");
-        assertEquals("Hello, Abdullah!", result);
-    }
-
-    //======================================================================
-    // TES UNTUK METHOD: getInformasiNIM()
-    //======================================================================
-
-    private static Stream<Arguments> provideNimTestData() throws IOException {
+        private static Stream<Arguments> provideNimTestData() throws IOException {
         // Tentukan path ke file data, relatif terhadap root proyek
         Path path = Paths.get("src/test/java/org/delcom/starter/controllers/data-tes-nim.csv");
         
@@ -89,231 +72,224 @@ class HomeControllerUnitTest {
         // Assert
         assertTrue(result.contains("Format NIM '11S21' tidak valid."), "Harus mengembalikan pesan error format");
     }
-    
-
-    
     //======================================================================
-    // TES UNTUK METHOD: hitungNilai()
+    // TES UNTUK METHOD DASAR
     //======================================================================
-private static Stream<Arguments> provideHitungNilaiTestData() throws IOException {
-    // PERBAIKAN: Menggunakan path relatif dari root proyek, sama seperti tes NIM.
-    Path path = Paths.get("src/test/java/org/delcom/starter/controllers/data-tes-hitungnilai.csv");
-    
-    return Files.lines(path)
-            .skip(1)
-            .map(line -> {
-                String[] parts = line.split(",", 5);
-                String deskripsi = parts[0];
-                String[] bobotStr = parts[1].split(":");
-                int bobotPA = Integer.parseInt(bobotStr[0]);
-                int bobotT = Integer.parseInt(bobotStr[1]);
-                int bobotK = Integer.parseInt(bobotStr[2]);
-                int bobotP = Integer.parseInt(bobotStr[3]);
-                int bobotUTS = Integer.parseInt(bobotStr[4]);
-                int bobotUAS = Integer.parseInt(bobotStr[5]);
-                List<String> daftarNilai = (parts[2] == null || parts[2].trim().isEmpty()) ? Collections.emptyList() : List.of(parts[2].split(";"));
-                String expectedNilaiAkhir = parts[3];
-                String expectedGrade = parts[4];
-                return Arguments.of(deskripsi, bobotPA, bobotT, bobotK, bobotP, bobotUTS, bobotUAS, daftarNilai, expectedNilaiAkhir, expectedGrade);
-            });
-}
-
-    @ParameterizedTest(name = "[{index}] {0}")
-    @MethodSource("provideHitungNilaiTestData")
-    @DisplayName("hitungNilai() - Menguji semua skenario dari file")
-    void hitungNilai_shouldCoverAllCasesFromFile(String deskripsi,
-            int bobotPA, int bobotT, int bobotK, int bobotP, int bobotUTS, int bobotUAS,
-            List<String> daftarNilai, String expectedNilaiAkhir, String expectedGrade) {
-        
-        // Arrange
-        HomeController controller = new HomeController();
-
-        // Act
-        String result = controller.hitungNilai(bobotPA, bobotT, bobotK, bobotP, bobotUTS, bobotUAS, daftarNilai);
-
-        // Assert
-        assertTrue(result.contains(">> Nilai Akhir: " + expectedNilaiAkhir + "<br>"), "Nilai akhir salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains(">> Grade: " + expectedGrade + "<br>"), "Grade salah untuk kasus: " + deskripsi);
-    }
-
-    @Test
-    @DisplayName("hitungNilai() - Menangani format angka yang salah (catch block)")
-    void hitungNilai_shouldCatchExceptionForInvalidNumberFormat() {
-        // Arrange
-        HomeController controller = new HomeController();
-        List<String> daftarNilaiError = List.of("PA|10|bukan-angka");
-
-        // Act
-        String result = controller.hitungNilai(10, 15, 10, 20, 20, 25, daftarNilaiError);
-
-        // Assert
-        assertTrue(result.contains("Terjadi kesalahan saat memproses input:") && result.contains("bukan-angka"),
-                "Pesan error harus menyertakan detail dan input yang salah");
-    }
-
-    //======================================================================
-    // TES UNTUK METHOD: analisisMatriks()
-    //======================================================================
-
-     private static Stream<Arguments> provideMatriksTestData() throws IOException {
-        Path path = Paths.get("src/test/java/org/delcom/starter/controllers/data-tes-matriks.csv");
-        return Files.lines(path)
-                .skip(1) // Melewati baris header
-                .map(line -> {
-                    String[] parts = line.split(",");
-                    
-                    // Ambil kolom pertama (deskripsi) dan 4 kolom terakhir (hasil yang diharapkan)
-                    String deskripsi = parts[0];
-                    String expectedDominan = parts[parts.length - 1];
-                    String expectedTengah = parts[parts.length - 2];
-                    String expectedKebalikan = parts[parts.length - 3];
-                    String expectedL = parts[parts.length - 4];
-                    
-                    // Gabungkan kembali semua bagian di tengah sebagai satu string data matriks
-                    String inputMatriks = String.join(",", java.util.Arrays.copyOfRange(parts, 1, parts.length - 4));
-                    
-                    // Kembalikan sebagai argumen individual yang cocok dengan method tes
-                    return Arguments.of(deskripsi, inputMatriks, expectedL, expectedKebalikan, expectedTengah, expectedDominan);
-                });
-    }
-   // Di dalam file: HomeControllerUnitTest.java
-
-    @ParameterizedTest(name = "[{index}] {0}") // Menggunakan deskripsi dari CSV sebagai nama tes
-    @MethodSource("provideMatriksTestData")
-    @DisplayName("analisisMatriks() - Menguji semua skenario matriks valid dari file")
-    void analisisMatriks_shouldCoverAllCasesFromFile(String deskripsi, String inputMatriks, String expectedL, String expectedKebalikan, String expectedTengah, String expectedDominan) {
-        // Arrange
-        HomeController controller = new HomeController();
-
-        // Act
-        String result = controller.analisisMatriks(inputMatriks);
-
-        // Assert
-        // Logika ini menambahkan ":" jika nilai L bukan "Tidak Ada"
-        String expectedLText = expectedL.equals("Tidak Ada") ? "Nilai L: " + expectedL : "Nilai L: " + expectedL + ":";
-
-        assertTrue(result.contains(expectedLText), "Nilai L salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Nilai Kebalikan L: " + expectedKebalikan), "Nilai Kebalikan L salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Nilai Tengah: " + expectedTengah), "Nilai Tengah salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Dominan: " + expectedDominan), "Nilai Dominan salah untuk kasus: " + deskripsi);
-    }
-
-    @Test
-    @DisplayName("analisisMatriks() - Mengembalikan error untuk data non-persegi")
-    void analisisMatriks_shouldReturnErrorForNonSquareData() {
-        // Arrange
-        HomeController controller = new HomeController();
-        String data = "1,2,3,4,5";
-
-        // Act
-        String result = controller.analisisMatriks(data);
-
-        // Assert
-        assertTrue(result.contains("tidak membentuk matriks persegi"), "Harus ada pesan error untuk data non-persegi");
-    }
-
-    @Test
-    @DisplayName("analisisMatriks() - Menangani format angka yang salah dalam data")
-    void analisisMatriks_shouldCatchExceptionForInvalidNumberFormat() {
-        // Arrange
-        HomeController controller = new HomeController();
-        String dataError = "1,2,tiga,4"; // 'tiga' akan menyebabkan error
-
-        // Act
-        String result = controller.analisisMatriks(dataError);
-
-        // Assert
-        assertTrue(result.contains("Terjadi kesalahan saat memproses data:"), "Harus menangkap exception");
-    }
-
-    //======================================================================
-    // TES UNTUK METHOD: analisisNilai()
-    //======================================================================
-
-// Di dalam file: HomeControllerUnitTest.java
-
-    private static Stream<Arguments> provideAnalisisNilaiTestData() throws IOException {
-        Path path = Paths.get("src/test/java/org/delcom/starter/controllers/data-tes-analisisnilai.csv");
-        return Files.lines(path)
-                .skip(1) // Melewati baris header
-                .map(line -> {
-                    String[] parts = line.split(",");
-                    String deskripsi = parts[0];
-                    // Mengubah string "10;20;5" menjadi List<Integer>
-                    List<Integer> inputNilai = Arrays.stream(parts[1].split(";"))
-                                                      .map(Integer::parseInt)
-                                                      .collect(Collectors.toList());
-                    String expectedTertinggi = parts[2];
-                    String expectedTerendah = parts[3];
-                    String expectedTerbanyak = parts[4];
-                    String expectedTersedikit = parts[5];
-                    String expectedJumlahTertinggi = parts[6];
-                    String expectedJumlahTerendah = parts[7];
-                    
-                    return Arguments.of(deskripsi, inputNilai, expectedTertinggi, expectedTerendah, 
-                                        expectedTerbanyak, expectedTersedikit, expectedJumlahTertinggi, 
-                                        expectedJumlahTerendah);
-                });
-    }
-
-    @ParameterizedTest(name = "[{index}] {0}")
-    @MethodSource("provideAnalisisNilaiTestData")
-    @DisplayName("analisisNilai() - Menguji semua skenario dari file")
-    void analisisNilai_shouldCoverAllCasesFromFile(String deskripsi, List<Integer> daftarNilai,
-            String expectedTertinggi, String expectedTerendah, String expectedTerbanyak,
-            String expectedTersedikit, String expectedJumlahTertinggi, String expectedJumlahTerendah) {
-        
-        // Arrange
-        HomeController controller = new HomeController();
-
-        // Act
-        String result = controller.analisisNilai(daftarNilai);
-
-        // Assert
-        assertTrue(result.contains("Tertinggi: " + expectedTertinggi), "Nilai tertinggi salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Terendah: " + expectedTerendah), "Nilai terendah salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Terbanyak: " + expectedTerbanyak), "Nilai terbanyak salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Tersedikit: " + expectedTersedikit), "Nilai tersedikit salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Jumlah Tertinggi: " + expectedJumlahTertinggi), "Jumlah tertinggi salah untuk kasus: " + deskripsi);
-        assertTrue(result.contains("Jumlah Terendah: " + expectedJumlahTerendah), "Jumlah terendah salah untuk kasus: " + deskripsi);
-    }
-
-    @Test
-    @DisplayName("analisisNilai() - Mengembalikan error untuk daftar kosong")
-    void analisisNilai_shouldReturnErrorForEmptyList() {
-        HomeController controller = new HomeController();
-        List<Integer> daftarNilai = Collections.emptyList();
-        String result = controller.analisisNilai(daftarNilai);
-        assertTrue(result.contains("Tidak ada data nilai yang diberikan"), "Harus ada pesan error untuk list kosong");
+    @Test @DisplayName("hello() - Mengembalikan pesan selamat datang")
+    void hello_ShouldReturnWelcomeMessage() {
+        assertEquals("Hay Gideon, selamat datang di pengembangan aplikasi dengan Spring Boot!", controller.hello());
     }
 
         @Test
-    @DisplayName("analisisNilai() - Mengembalikan error untuk daftar null")
-    void analisisNilai_shouldReturnErrorForNullList() {
-        // Arrange
+    @DisplayName("sayHello() - Mengembalikan pesan sapaan yang dipersonalisasi")
+    void sayHello_ShouldReturnPersonalizedGreeting() {
         HomeController controller = new HomeController();
-        
-        // Act
-        String result = controller.analisisNilai(null);
-        
-        // Assert
-        assertTrue(result.contains("Tidak ada data nilai yang diberikan"), "Harus ada pesan error untuk list null");
+        String result = controller.sayHello("Abdullah");
+        assertEquals("Hello, Abdullah!", result);
+    }
+    //======================================================================
+    // TES UNTUK METHOD: perolehanNilai()
+    //======================================================================
+     private static Stream<Arguments> providePerolehanNilaiTestData() {
+        return Stream.of(
+            // --- Tes Kasus Valid dan Edge Case ---
+            Arguments.of("Kasus Lengkap", "testdata/nilai-kasus-lengkap.txt", "83.70", "A"),
+            Arguments.of("Kasus dari Gambar (Tanpa Proyek)", "testdata/nilai-dari-gambar.txt", "29.93", "E"),
+            Arguments.of("Kasus Hanya UAS (max... == 0)", "testdata/nilai-hanya-uas.txt", "20.00", "E"),
+            Arguments.of("Kasus dengan Maksimum Nol", "testdata/nilai-maks-nol.txt", "13.50", "E"),
+            Arguments.of("Mendapatkan Grade AB", "testdata/nilai-grade-ab.txt", "75.00", "AB"),
+            Arguments.of("Mendapatkan Grade B", "testdata/nilai-grade-b.txt", "70.00", "B"),
+            Arguments.of("Mendapatkan Grade BC", "testdata/nilai-grade-bc.txt", "60.00", "BC"),
+            Arguments.of("Mendapatkan Grade C", "testdata/nilai-grade-c.txt", "50.00", "C"),
+            // ==========================================================
+            // KASUS UJI BARU UNTUK PERCABANGAN YANG DITANDAI KUNING
+            // ==========================================================
+            Arguments.of("Mengabaikan Baris Kosong", "testdata/nilai-dengan-baris-kosong.txt", "44.00", "D"),
+            Arguments.of("Hanya Bobot (Loop Kosong)", "testdata/nilai-hanya-bobot.txt", "0.00", "E"),
+            Arguments.of("Mengabaikan Format Baris Salah", "testdata/nilai-format-baris-salah.txt", "16.00", "E"),
+            Arguments.of("Mengabaikan Simbol Tidak Dikenal", "testdata/nilai-simbol-tidak-dikenal.txt", "30.50", "E")
+        );
+    }
+
+    @ParameterizedTest(name = "[perolehanNilai] {0}")
+    @MethodSource("providePerolehanNilaiTestData")
+    @DisplayName("perolehanNilai() - Menguji semua cabang logika dari file TXT")
+    void perolehanNilai_shouldProcessAllLogicBranchesFromFile(String deskripsi, String filePath, String expectedNilaiAkhir, String expectedGrade) throws IOException {
+        String base64Input = encodeFileToBase64(filePath);
+        String result = controller.perolehanNilai(base64Input);
+
+        Pattern pattern = Pattern.compile(">> Nilai Akhir: (\\d+\\.\\d{2})<br>");
+        Matcher matcher = pattern.matcher(result);
+
+        if (matcher.find()) {
+            String actualNilaiAkhir = matcher.group(1);
+            assertEquals(expectedNilaiAkhir, actualNilaiAkhir, "Nilai akhir salah untuk: " + deskripsi);
+        } else {
+            fail("Format output 'Nilai Akhir' tidak ditemukan dalam respons HTML untuk kasus: " + deskripsi + ". Output aktual: " + result);
+        }
+
+        assertTrue(result.contains(">> Grade: " + expectedGrade), "Grade salah untuk: " + deskripsi);
+    }
+
+    //======================================================================
+    // TES UNTUK METHOD: perolehanNilai() - KASUS ERROR EKSPLISIT
+    //======================================================================
+    @Test
+    @DisplayName("perolehanNilai() - [ERROR] Menguji cabang 'if (lines.size() < 6)'")
+    void perolehanNilai_shouldReturnErrorForIncompleteBobot() throws IOException {
+        String base64Input = encodeFileToBase64("testdata/nilai-error-kurang-bobot.txt");
+        String result = controller.perolehanNilai(base64Input);
+        assertTrue(result.contains("Data tidak lengkap. Diperlukan minimal 6 baris untuk bobot."),
+                   "Pesan error untuk bobot tidak lengkap tidak sesuai.");
     }
 
     @Test
-    @DisplayName("analisisNilai() - Menangkap exception jika ada elemen null di dalam list")
-    void analisisNilai_shouldCatchExceptionForListWithNullElement() {
-        // Arrange
-        HomeController controller = new HomeController();
-        // List.of() tidak mengizinkan null, jadi kita gunakan Arrays.asList()
-        List<Integer> daftarNilaiDenganNull = java.util.Arrays.asList(10, 20, null, 30);
-        
-        // Act
-        String result = controller.analisisNilai(daftarNilaiDenganNull);
-        
-        // Assert
-        assertTrue(result.contains("Terjadi kesalahan saat memproses data:"), "Harus menangkap exception dan mengembalikan pesan error");
+    @DisplayName("perolehanNilai() - [CATCH] Menguji cabang 'catch (Exception e)' dengan format bobot salah")
+    void perolehanNilai_shouldCatchErrorForInvalidBobotFormat() throws IOException {
+        String base64Input = encodeFileToBase64("testdata/nilai-error-format-bobot.txt");
+        String result = controller.perolehanNilai(base64Input);
+        assertTrue(result.contains("Terjadi kesalahan saat memproses input Base64"),
+                   "Blok catch seharusnya dieksekusi.");
+        assertTrue(result.contains("For input string: \"sepuluh\""),
+                   "Pesan error harus menyertakan detail dari NumberFormatException.");
+    }
+    //======================================================================
+    // TES UNTUK METHOD LAINNYA (TIDAK ADA PERUBAHAN)
+    //======================================================================
+ private static Stream<Arguments> providePerbedaanLTestData() {
+        return Stream.of(
+            // --- Menguji cabang ukuran matriks ---
+            Arguments.of("Matriks 1x1", "testdata/matriks-1x1.txt", "Tidak Ada", "Tidak Ada", "42", "42"),
+            Arguments.of("Matriks 2x2", "testdata/matriks-2x2.txt", "Tidak Ada", "Tidak Ada", "100", "100"),
+            
+            // --- Menguji cabang dominan (L > K, K > L, L == K) dan ukuran >= 3 ---
+            Arguments.of("Matriks 3x3 (L > K)", "testdata/matriks-kebalikan-dominan.txt", "19", "21", "5", "21"), // Sebenarnya ini K > L
+            Arguments.of("Matriks 4x4 (L > K)", "testdata/matriks-4x4.txt", "66", "30", "38", "66"),
+            Arguments.of("Matriks Kebalikan Dominan (K > L)", "testdata/matriks-tie-dominan.txt", "21", "19", "5", "21"), // Sebenarnya ini L > K
+            Arguments.of("Matriks Dominan Tie (L == K)", "testdata/matriks-3x3.txt", "20", "20", "5", "5"),
+            
+            // --- Menguji cabang filter baris kosong ---
+            Arguments.of("Matriks dengan Baris Kosong", "testdata/matriks-dengan-baris-kosong.txt", "20", "20", "5", "5")
+        );
     }
 
+    @ParameterizedTest(name = "[perbedaanL] {0}")
+    @MethodSource("providePerbedaanLTestData")
+    @DisplayName("perbedaanL() - Menguji berbagai ukuran dan kasus matriks valid dari file TXT")
+    void perbedaanL_shouldProcessValidBase64FromFile(String desc, String filePath, String l, String k, String t, String d) throws IOException {
+        String base64Input = encodeFileToBase64(filePath);
+        String result = controller.perbedaanL(base64Input);
+
+        // Debugging: Cetak output jika tes gagal
+        // System.out.println("--- Testing: " + desc + " ---\n" + result + "\n--------------------");
+        
+        assertTrue(result.contains("Nilai L: " + l), "Nilai L salah untuk: " + desc);
+        assertTrue(result.contains("Nilai Kebalikan L: " + k), "Nilai Kebalikan L salah untuk: " + desc);
+        assertTrue(result.contains("Nilai Tengah: " + t), "Nilai Tengah salah untuk: " + desc);
+        assertTrue(result.contains("Dominan: " + d), "Dominan salah untuk: " + desc);
+    }
+
+    //======================================================================
+    // TES UNTUK METHOD: perbedaanL() - KASUS ERROR EKSPLISIT
+    //======================================================================
+    @Test
+    @DisplayName("perbedaanL() - [ERROR] Menguji cabang data non-persegi")
+    void perbedaanL_shouldReturnErrorForNonSquareData() throws IOException {
+        String base64Input = encodeFileToBase64("testdata/matriks-error-non-persegi.txt");
+        String result = controller.perbedaanL(base64Input);
+        assertTrue(result.contains("tidak membentuk matriks persegi"),
+                   "Pesan error untuk data non-persegi tidak sesuai.");
+    }
+
+    @Test
+    @DisplayName("perbedaanL() - [CATCH] Menguji cabang data non-numerik")
+    void perbedaanL_shouldCatchErrorForNonNumericData() throws IOException {
+        String base64Input = encodeFileToBase64("testdata/matriks-error-non-numerik.txt");
+        String result = controller.perbedaanL(base64Input);
+        assertTrue(result.contains("Terjadi kesalahan saat memproses data Base64"),
+                   "Blok catch seharusnya dieksekusi.");
+        assertTrue(result.contains("For input string: \"tiga\""),
+                   "Pesan error harus menyertakan detail dari NumberFormatException.");
+    }
     
+
+     //======================================================================
+    // TES UNTUK METHOD: palingTer() - KASUS VALID (SEMUA CABANG)
+    //======================================================================
+    // ... sisa tes untuk palingTer() tetap sama ...
+    private static Stream<Arguments> providePalingTerTestData() {
+        return Stream.of(
+            Arguments.of("Kasus Standar", "testdata/palingter-kasus-standar.txt", "95", "70", "85 (3x)", "70 (1x)", "85 * 3 = 255", "70 * 1 = 70"),
+            Arguments.of("Satu Nilai", "testdata/palingter-satu-nilai.txt", "100", "100", "100 (1x)", "100 (1x)", "100 * 1 = 100", "100 * 1 = 100"),
+            Arguments.of("Semua Nilai Sama", "testdata/palingter-semua-sama.txt", "50", "50", "50 (5x)", "50 (5x)", "50 * 5 = 250", "50 * 5 = 250"),
+            Arguments.of("Semua Nilai Beda", "testdata/palingter-semua-beda.txt", "50", "10", "10 (1x)", "10 (1x)", "50 * 1 = 50", "10 * 1 = 10"),
+            Arguments.of("Tie pada Jumlah Tertinggi", "testdata/palingter-jumlah-tie.txt", "20", "15", "15 (4x)", "20 (3x)", "20 * 3 = 60", "15 * 4 = 60"),
+            Arguments.of("Mengabaikan Baris Kosong", "testdata/palingter-dengan-baris-kosong.txt", "95", "70", "85 (3x)", "70 (1x)", "85 * 3 = 255", "70 * 1 = 70")
+        );
+    }
+
+    @ParameterizedTest(name = "[palingTer] {0}")
+    @MethodSource("providePalingTerTestData")
+    @DisplayName("palingTer() - Menguji skenario nilai valid dari file TXT")
+    void palingTer_shouldProcessValidBase64FromFile(String desc, String fp, String t, String r, String byk, String sdkt, String jt, String jr) throws IOException {
+        String base64Input = encodeFileToBase64(fp);
+        String result = controller.palingTer(base64Input);
+        assertTrue(result.contains("Tertinggi: " + t), "Tertinggi salah untuk: " + desc);
+        assertTrue(result.contains("Terendah: " + r), "Terendah salah untuk: " + desc);
+        assertTrue(result.contains("Terbanyak: " + byk), "Terbanyak salah untuk: " + desc);
+        assertTrue(result.contains("Tersedikit: " + sdkt), "Tersedikit salah untuk: " + desc);
+        assertTrue(result.contains("Jumlah Tertinggi: " + jt), "Jumlah Tertinggi salah untuk: " + desc);
+        assertTrue(result.contains("Jumlah Terendah: " + jr), "Jumlah Terendah salah untuk: " + desc);
+    }
+
+    //======================================================================
+    // TES UNTUK METHOD: palingTer() - KASUS ERROR EKSPLISIT
+    //======================================================================
+    
+    // ==========================================================
+    // METODE TES BARU YANG MENGGANTIKAN DUA TES SEBELUMNYA
+    // INI SECARA EKSPLISIT MENGUJI CABANG YANG ANDA TANDAI
+    // ==========================================================
+    @Test
+    @DisplayName("palingTer() - [ERROR] Menguji cabang input kosong atau hanya spasi")
+    void palingTer_shouldHandleEmptyAndWhitespaceInput() {
+        // Kasus 1: Input adalah string kosong ""
+        String emptyString = "";
+        String base64Empty = Base64.getEncoder().encodeToString(emptyString.getBytes(StandardCharsets.UTF_8));
+        String result1 = controller.palingTer(base64Empty);
+        assertTrue(result1.contains("Tidak ada data nilai yang diberikan"),
+                   "Pesan error untuk data kosong (empty string) tidak sesuai.");
+
+        // Kasus 2: Input hanya berisi spasi dan baris baru
+        String whitespaceString = "\n \t \n";
+        String base64Whitespace = Base64.getEncoder().encodeToString(whitespaceString.getBytes(StandardCharsets.UTF_8));
+        String result2 = controller.palingTer(base64Whitespace);
+        assertTrue(result2.contains("Tidak ada data nilai yang diberikan"),
+                   "Pesan error untuk data yang hanya berisi spasi tidak sesuai.");
+    }
+
+    @Test
+    @DisplayName("palingTer() - [CATCH] Menguji cabang data non-numerik")
+    void palingTer_shouldCatchErrorForNonNumericData() throws IOException {
+        String base64Input = encodeFileToBase64("testdata/palingter-error-non-numerik.txt");
+        String result = controller.palingTer(base64Input);
+        assertTrue(result.contains("Terjadi kesalahan saat memproses data Base64"),
+                   "Blok catch seharusnya dieksekusi.");
+        assertTrue(result.contains("For input string: \"tiga\""),
+                   "Pesan error harus menyertakan detail dari NumberFormatException.");
+    }
+
+    @Test
+    @DisplayName("[CATCH ALL] Menangani input yang bukan Base64 valid")
+    void allMethods_shouldCatchErrorForInvalidBase64() {
+        String invalidBase64 = "ini-bukan-base64-string";
+        
+        String resultNilai = controller.perolehanNilai(invalidBase64);
+        String resultMatriks = controller.perbedaanL(invalidBase64);
+        String resultPalingTer = controller.palingTer(invalidBase64);
+
+        assertTrue(resultNilai.contains("Terjadi kesalahan saat memproses input Base64"));
+        assertTrue(resultMatriks.contains("Terjadi kesalahan saat memproses data Base64"));
+        assertTrue(resultPalingTer.contains("Terjadi kesalahan saat memproses data Base64"));
+    }
 }
