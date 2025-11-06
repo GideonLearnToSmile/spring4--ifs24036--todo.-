@@ -29,7 +29,7 @@ public class HomeController {
     }
 
     //======================================================================
-    // METHOD 1: Dari NIMController - (Sudah Benar)
+    // METHOD 1: Dari NIMController
     //======================================================================
     @GetMapping("/info-nim/{nim}")
     public String informasiNim(@PathVariable String nim) {
@@ -68,7 +68,7 @@ public class HomeController {
     }
 
     //======================================================================
-    // METHOD 2: perolehanNilai(strBase64) - (Sudah Benar)
+    // METHOD 2: perolehanNilai(strBase64)
     //======================================================================
     @GetMapping("/perolehan-nilai")
     public String perolehanNilai(@RequestParam("data") String strBase64) {
@@ -131,7 +131,7 @@ public class HomeController {
     }
 
     //======================================================================
-    // METHOD 3: perbedaanL(strBase64) - (Sudah Benar)
+    // METHOD 3: perbedaanL(strBase64)
     //======================================================================
     @GetMapping("/perbedaan-l")
     public String perbedaanL(@RequestParam("data") String strBase64) {
@@ -163,7 +163,7 @@ public class HomeController {
     }
     
     //======================================================================
-    // METHOD 4: palingTer(strBase64) - KODE TELAH DIMIGRASIKAN
+    // METHOD 4: palingTer(strBase64)
     //======================================================================
     @GetMapping("/paling-ter")
     public String palingTer(@RequestParam("data") String strBase64) {
@@ -174,9 +174,7 @@ public class HomeController {
         for (String line : lines) {
             try {
                 daftarNilai.add(Integer.parseInt(line.trim()));
-            } catch (NumberFormatException e) {
-                // Abaikan baris yang tidak bisa di-parse menjadi integer
-            }
+            } catch (NumberFormatException e) {}
         }
         
         if (daftarNilai.isEmpty()) {
@@ -246,7 +244,6 @@ public class HomeController {
             i++;
         } while (true);
 
-        // --- [PERBAIKAN] BLOK LOGIKA TERSEDIKIT DISEDERHANAKAN UNTUK MENGHILANGKAN PERCABANGAN TAK TERUJI ---
         int nilaiTerdikit = arrayNilai[0];
         HashMap<Integer, Integer> seenNumbers = new HashMap<>();
         boolean isSearchingForNew = false;
@@ -256,16 +253,13 @@ public class HomeController {
             seenNumbers.put(currentValue, 1);
 
             if (isSearchingForNew && isFirstTimeSeen) {
-                // Kandidat baru ditemukan, perbarui nilaiTerdikit dan berhenti mencari
                 nilaiTerdikit = currentValue;
                 isSearchingForNew = false;
             } else if (currentValue == nilaiTerdikit && !isFirstTimeSeen) {
-                // Kandidat saat ini muncul lagi, mulai cari kandidat baru
                 isSearchingForNew = true;
             }
         }
         int frekuensiTerdikit = hashMapNilai.get(nilaiTerdikit);
-        // --- AKHIR BLOK PERBAIKAN ---
 
         int jumlahTertinggi = arrayNilai[0];
         int nilaiJumlahTertinggi = 0;
